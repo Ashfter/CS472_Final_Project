@@ -40,10 +40,3 @@ def get_numeric_network_data(file_path, save_file=None):
 
     # Return as a matrix (NumPy array) for your PCA script
     return numeric_df.values
-
-# --- How to use it in your workflow ---
-# data_for_pca = get_numeric_network_data("baseline_valorant.csv", "ready_for_pca.csv")
-
-# Now 'data_for_pca' is a clean mathematical matrix:
-# [[63942, 1900, 17, 3.034, 848], 
-#  [...]]
