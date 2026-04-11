@@ -6,6 +6,8 @@ from typing import List
 
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 try:
     import hdbscan
@@ -58,7 +60,9 @@ def process_file(path: str, db_proc, pca_proc) -> np.ndarray:
 
 
 def main():
-    project_root = os.path.dirname(os.path.abspath(__file__))
+    # use repository root (parent of this HDBSCAN package) so CSV files
+    # stored at the repo root are found correctly
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     csv_dir = find_csv_dir(project_root)
 
     db_proc, pca_proc = load_processors(project_root)
@@ -94,6 +98,61 @@ def main():
 
     unique_labels = np.unique(labels)
     print(f"HDBSCAN ran successfully. Found {len(unique_labels) - (1 if -1 in unique_labels else 0)} clusters (noise label -1).")
+
+    # Visualizations
+    def _project_2d(arr: np.ndarray) -> np.ndarray:
+        if arr.shape[1] >= 2:
+            return arr[:, :2]
+        try:
+            from sklearn.decomposition import PCA as SKPCA
+            return SKPCA(n_components=2).fit_transform(arr)
+        except Exception:
+            # pad with zeros if only 1 feature available
+            return np.hstack([arr, np.zeros((arr.shape[0], 1))])
+
+    proj = _project_2d(X)
+
+    probs = getattr(clusterer, 'probabilities_', None)
+    if probs is None:
+        probs = np.ones_like(labels, dtype=float)
+        probs[labels == -1] = 0.35
+
+    sns.set(style="whitegrid")
+
+    # Scatter by cluster label
+    plt.figure(figsize=(8, 6))
+    unique = np.unique(labels)
+    palette = sns.color_palette('tab20', n_colors=max(2, len(unique)))
+    for i, lab in enumerate(unique):
+        mask = labels == lab
+        color = 'lightgray' if lab == -1 else palette[i % len(palette)]
+        plt.scatter(proj[mask, 0], proj[mask, 1], s=40, c=[color], label=f"{lab}", alpha=0.9 if lab != -1 else 0.4, edgecolors='k', linewidths=0.2)
+    plt.title('HDBSCAN clusters (2D projection)')
+    plt.xlabel('Component 1')
+    plt.ylabel('Component 2')
+    plt.legend(title='label', bbox_to_anchor=(1.05, 1), loc='upper left')
+
+    # Scatter with membership probabilities as alpha/size
+    plt.figure(figsize=(8, 6))
+    sc = plt.scatter(proj[:, 0], proj[:, 1], c=labels, cmap='tab20', s=np.clip(probs * 80, 10, 200), alpha=np.clip(probs, 0.2, 1.0), edgecolors='k', linewidths=0.2)
+    plt.colorbar(sc, label='cluster label')
+    plt.title('Points sized/alpha by membership probability')
+    plt.xlabel('Component 1')
+    plt.ylabel('Component 2')
+
+    # Optional: condensed tree if plotting utilities available
+    try:
+        from hdbscan import plots as hdbplots
+        try:
+            fig = hdbplots.plot_condensed_tree(clusterer)
+            fig.suptitle('HDBSCAN condensed tree')
+        except Exception:
+            # some versions return an Axes object
+            hdbplots.plot_condensed_tree(clusterer)
+    except Exception:
+        print('hdbscan plotting utilities not available; skipping condensed tree.')
+
+    plt.show()
 
 
 if __name__ == "__main__":
