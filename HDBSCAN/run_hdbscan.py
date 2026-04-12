@@ -1,156 +1,182 @@
 import os
-import sys
 import glob
-import importlib
-from typing import List
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
 
 try:
     import hdbscan
-except Exception:
-    hdbscan = None
+except Exception as e:
+    raise RuntimeError(
+        "The 'hdbscan' package is not installed. Install it with:\n"
+        "pip install hdbscan"
+    ) from e
+
+from HDBSCAN.databaseFormatter import get_numeric_network_data
+from HDBSCAN.PCA import run_pca
 
 
-def find_csv_dir(root: str) -> str:
-    # Prefer the actual folder present in the repo; accept common misspelling
+def find_csv_dir(project_root: str) -> str:
     candidates = [
-        os.path.join(root, "CSV_File_Creatation"),
-        os.path.join(root, "CSV_File_Creation"),
-        os.path.join(root, "CSV_File_Creatation/"),
+        os.path.join(project_root, "CSV_Creation"),
+        os.path.join(project_root, "CSV_File_Creation"),
+        os.path.join(project_root, "CSV_File_Creatation"),
+        os.path.join(project_root, "CSV_Creation/"),
+        os.path.join(project_root, "CSV_File_Creation/"),
+        os.path.join(project_root, "CSV_File_Creatation/"),
     ]
-    for c in candidates:
-        if os.path.isdir(c):
-            return c
-    raise FileNotFoundError("Could not find CSV_File_Creatation or CSV_File_Creation directory")
+
+    for candidate in candidates:
+        if os.path.isdir(candidate):
+            return candidate
+
+    raise FileNotFoundError(
+        "Could not find a CSV directory. Checked: "
+        "CSV_Creation, CSV_File_Creation, CSV_File_Creatation"
+    )
 
 
-def load_processors(project_root: str):
-    if project_root not in sys.path:
-        sys.path.insert(0, project_root)
+def load_all_csvs(csv_dir: str) -> pd.DataFrame:
+    csv_paths = sorted(glob.glob(os.path.join(csv_dir, "*.csv")))
+    if not csv_paths:
+        raise FileNotFoundError(f"No CSV files found in {csv_dir}")
 
-    db_mod = importlib.import_module("HDBSCAN.databaseFormater")
-    pca_mod = importlib.import_module("HDBSCAN.PCA")
+    frames = []
 
-    db_proc = getattr(db_mod, "process", None)
-    pca_proc = getattr(pca_mod, "process", None)
+    for path in csv_paths:
+        try:
+            df = get_numeric_network_data(path, return_df=True)
+            frames.append(df)
+            print(f"Loaded {os.path.basename(path)} -> shape {df.shape}")
+        except Exception as e:
+            print(f"Skipping {os.path.basename(path)}: {e}")
 
-    if not callable(db_proc):
-        raise ImportError("`databaseFormater` does not expose a callable `process(df)` function")
-    if not callable(pca_proc):
-        raise ImportError("`PCA` does not expose a callable `process(df)` function")
+    if not frames:
+        raise RuntimeError("No usable CSV data was loaded.")
 
-    return db_proc, pca_proc
+    combined = pd.concat(frames, ignore_index=True)
+
+    # Drop duplicate rows and obvious garbage if desired
+    combined = combined.replace([np.inf, -np.inf], np.nan).dropna()
+
+    print(f"\nCombined dataset shape: {combined.shape}")
+    return combined
 
 
-def process_file(path: str, db_proc, pca_proc) -> np.ndarray:
-    df = pd.read_csv(path)
-    df_db = db_proc(df)
-    transformed = pca_proc(df_db)
-    # Accept either DataFrame or numpy array
-    if isinstance(transformed, pd.DataFrame):
-        return transformed.values
-    if isinstance(transformed, np.ndarray):
-        return transformed
-    # Try to coerce
-    return np.asarray(transformed)
+def plot_clusters_2d(X_2d: np.ndarray, labels: np.ndarray):
+    plt.figure(figsize=(10, 6))
+    unique_labels = np.unique(labels)
+
+    for label in unique_labels:
+        mask = labels == label
+        if label == -1:
+            plt.scatter(
+                X_2d[mask, 0], X_2d[mask, 1],
+                s=25, alpha=0.35, label="Noise (-1)"
+            )
+        else:
+            plt.scatter(
+                X_2d[mask, 0], X_2d[mask, 1],
+                s=30, alpha=0.85, label=f"Cluster {label}"
+            )
+
+    plt.title("HDBSCAN Clusters in PCA Space")
+    plt.xlabel("PC1")
+    plt.ylabel("PC2")
+    plt.legend()
+    plt.tight_layout()
+
+
+def plot_membership_confidence(X_2d: np.ndarray, labels: np.ndarray, probabilities: np.ndarray):
+    plt.figure(figsize=(10, 6))
+    plt.scatter(
+        X_2d[:, 0],
+        X_2d[:, 1],
+        c=labels,
+        s=np.clip(probabilities * 120, 10, 140),
+        alpha=np.clip(probabilities, 0.2, 1.0)
+    )
+    plt.title("HDBSCAN Membership Confidence")
+    plt.xlabel("PC1")
+    plt.ylabel("PC2")
+    plt.tight_layout()
+
+
+def plot_noise_highlight(X_2d: np.ndarray, labels: np.ndarray):
+    plt.figure(figsize=(10, 6))
+
+    clustered_mask = labels != -1
+    noise_mask = labels == -1
+
+    plt.scatter(
+        X_2d[clustered_mask, 0],
+        X_2d[clustered_mask, 1],
+        s=20,
+        alpha=0.18,
+        label="Clustered / Normal-ish"
+    )
+    plt.scatter(
+        X_2d[noise_mask, 0],
+        X_2d[noise_mask, 1],
+        s=40,
+        alpha=0.9,
+        label="Noise / Potential Anomaly"
+    )
+
+    plt.title("Potential Anomalies Highlighted")
+    plt.xlabel("PC1")
+    plt.ylabel("PC2")
+    plt.legend()
+    plt.tight_layout()
 
 
 def main():
-    # use repository root (parent of this HDBSCAN package) so CSV files
-    # stored at the repo root are found correctly
+    # Assumes this file lives in HDBSCAN/
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     csv_dir = find_csv_dir(project_root)
 
-    db_proc, pca_proc = load_processors(project_root)
+    numeric_df = load_all_csvs(csv_dir)
 
-    csv_paths = sorted(glob.glob(os.path.join(csv_dir, "*.csv")))
-    if not csv_paths:
-        print(f"No CSV files found in {csv_dir}")
-        return
+    # PCA for clustering and plotting
+    pcs_df, pca_obj, scaler = run_pca(
+        numeric_df,
+        variance_threshold=0.95,
+        scale=True
+    )
 
-    transformed_list: List[np.ndarray] = []
-    for p in csv_paths:
-        try:
-            arr = process_file(p, db_proc, pca_proc)
-            if arr.ndim == 1:
-                arr = arr.reshape(1, -1)
-            transformed_list.append(arr)
-            print(f"Processed {os.path.basename(p)} -> shape {arr.shape}")
-        except Exception as e:
-            print(f"Skipping {p}: {e}")
+    X = pcs_df.values
 
-    if not transformed_list:
-        print("No transformed data available to cluster")
-        return
+    clusterer = hdbscan.HDBSCAN(
+        min_cluster_size=15,
+        min_samples=5,
+        metric="euclidean",
+        cluster_selection_method="eom",
+        prediction_data=True
+    )
 
-    X = np.vstack(transformed_list)
-    print(f"Aggregated data shape: {X.shape}")
-
-    if hdbscan is None:
-        raise RuntimeError("hdbscan package not available. Install it with `pip install hdbscan` to run clustering")
-
-    clusterer = hdbscan.HDBSCAN()
     labels = clusterer.fit_predict(X)
+    probabilities = clusterer.probabilities_
 
     unique_labels = np.unique(labels)
-    print(f"HDBSCAN ran successfully. Found {len(unique_labels) - (1 if -1 in unique_labels else 0)} clusters (noise label -1).")
+    num_clusters = len([x for x in unique_labels if x != -1])
+    num_noise = int(np.sum(labels == -1))
 
-    # Visualizations
-    def _project_2d(arr: np.ndarray) -> np.ndarray:
-        if arr.shape[1] >= 2:
-            return arr[:, :2]
-        try:
-            from sklearn.decomposition import PCA as SKPCA
-            return SKPCA(n_components=2).fit_transform(arr)
-        except Exception:
-            # pad with zeros if only 1 feature available
-            return np.hstack([arr, np.zeros((arr.shape[0], 1))])
+    print("\nHDBSCAN results")
+    print("----------------")
+    print("Unique labels:", unique_labels)
+    print("Cluster count:", num_clusters)
+    print("Noise points:", num_noise)
 
-    proj = _project_2d(X)
+    # For graphs, use first two PCs if available
+    if X.shape[1] >= 2:
+        X_2d = X[:, :2]
+    else:
+        X_2d = np.column_stack([X[:, 0], np.zeros(X.shape[0])])
 
-    probs = getattr(clusterer, 'probabilities_', None)
-    if probs is None:
-        probs = np.ones_like(labels, dtype=float)
-        probs[labels == -1] = 0.35
-
-    sns.set(style="whitegrid")
-
-    # Scatter by cluster label
-    plt.figure(figsize=(8, 6))
-    unique = np.unique(labels)
-    palette = sns.color_palette('tab20', n_colors=max(2, len(unique)))
-    for i, lab in enumerate(unique):
-        mask = labels == lab
-        color = 'lightgray' if lab == -1 else palette[i % len(palette)]
-        plt.scatter(proj[mask, 0], proj[mask, 1], s=40, c=[color], label=f"{lab}", alpha=0.9 if lab != -1 else 0.4, edgecolors='k', linewidths=0.2)
-    plt.title('HDBSCAN clusters (2D projection)')
-    plt.xlabel('Component 1')
-    plt.ylabel('Component 2')
-    plt.legend(title='label', bbox_to_anchor=(1.05, 1), loc='upper left')
-
-    # Scatter with membership probabilities as alpha/size
-    plt.figure(figsize=(8, 6))
-    sc = plt.scatter(proj[:, 0], proj[:, 1], c=labels, cmap='tab20', s=np.clip(probs * 80, 10, 200), alpha=np.clip(probs, 0.2, 1.0), edgecolors='k', linewidths=0.2)
-    plt.colorbar(sc, label='cluster label')
-    plt.title('Points sized/alpha by membership probability')
-    plt.xlabel('Component 1')
-    plt.ylabel('Component 2')
-
-    # Optional: condensed tree if plotting utilities available
-    try:
-        from hdbscan import plots as hdbplots
-        try:
-            fig = hdbplots.plot_condensed_tree(clusterer)
-            fig.suptitle('HDBSCAN condensed tree')
-        except Exception:
-            # some versions return an Axes object
-            hdbplots.plot_condensed_tree(clusterer)
-    except Exception:
-        print('hdbscan plotting utilities not available; skipping condensed tree.')
+    plot_clusters_2d(X_2d, labels)
+    plot_membership_confidence(X_2d, labels, probabilities)
+    plot_noise_highlight(X_2d, labels)
 
     plt.show()
 
