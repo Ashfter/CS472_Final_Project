@@ -99,10 +99,18 @@ def main():
 
     model_df, raw_df, meta = load_unsw_nb15(
         dataset_path,
-        sample_size=5000,
+        sample_size=1000,
         random_state=42,
         top_n_services=10
     )
+
+    # Save a small sample of the processed feature matrix for presentation
+    sample_rows = 25
+    preprocessed_sample = model_df.head(sample_rows).copy()
+    preprocessed_sample.to_csv("preprocessed_sample.csv", index=False)
+
+    print("\nSaved preprocessed sample to preprocessed_sample.csv")
+    print(preprocessed_sample.to_string(index=False))
 
     print("Loaded UNSW-NB15")
     print("Feature matrix shape:", model_df.shape)
