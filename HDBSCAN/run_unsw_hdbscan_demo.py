@@ -14,6 +14,7 @@ from HDBSCAN.ensemble_detector import (
     print_detector_comparison,
     plot_ensemble_comparison,
 )
+from HDBSCAN.report_writer import write_html_report
 
 
 def plot_clusters(X_2d: np.ndarray, labels: np.ndarray):
@@ -111,14 +112,6 @@ def main():
 
     os.makedirs("output", exist_ok=True)
 
-    # Save matched raw/preprocessed samples of the same rows for comparison
-    sample_rows = 25
-    raw_df.head(sample_rows).to_csv("output/raw_sample.csv", index=False)
-    model_df.head(sample_rows).to_csv("output/preprocessed_sample.csv", index=False)
-
-    print(f"\nSaved raw sample ({raw_df.shape[1]} columns) to output/raw_sample.csv")
-    print(f"Saved preprocessed sample ({model_df.shape[1]} columns) to output/preprocessed_sample.csv")
-
     print("\nLoaded UNSW-NB15")
     print("Feature matrix shape:", model_df.shape)
     print("Raw data shape:", raw_df.shape)
@@ -192,23 +185,12 @@ def main():
     report_df.to_csv(report_path, index=False)
     print(f"\nSaved anomaly report to {report_path}")
 
-    if not report_df.empty:
-        preview_cols = [
-            c for c in [
-                "row_index",
-                "membership_probability",
-                "proto",
-                "service",
-                "state",
-                "label",
-                "attack_cat",
-                "description",
-                "baseline_comparison",
-            ]
-            if c in report_df.columns
-        ]
-        print("\nTop anomaly examples:")
-        print(report_df[preview_cols].head(10).to_string(index=False))
+    write_html_report(
+        report_df=report_df,
+        out_path="output/session_report.html",
+        flows_analyzed=len(raw_df),
+        session_label="UNSW-NB15 Demo",
+    )
 
     plt.show()
 
