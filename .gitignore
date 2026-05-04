@@ -1,0 +1,22 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Large dataset files (download separately — see README)
+CSV_File_Creation/UNSW-NB15_4.csv
+CSV_File_Creation/UNSW_NB15_training-set(in).csv
+
+# Generated outputs
+output/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

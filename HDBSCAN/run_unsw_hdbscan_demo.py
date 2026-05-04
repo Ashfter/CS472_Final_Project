@@ -3,11 +3,18 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-import hdbscan
+from sklearn.cluster import HDBSCAN
 
 from HDBSCAN.unsw_nb15_loader import load_unsw_nb15
 from HDBSCAN.PCA import run_pca
 from HDBSCAN.anomaly_explainer import build_anomaly_report
+from HDBSCAN.ensemble_detector import (
+    run_isolation_forest,
+    combine_predictions,
+    print_detector_comparison,
+    plot_ensemble_comparison,
+)
+from HDBSCAN.report_writer import write_html_report
 
 
 def plot_clusters(X_2d: np.ndarray, labels: np.ndarray):
@@ -94,8 +101,7 @@ def print_basic_evaluation(raw_df: pd.DataFrame, labels: np.ndarray):
 
 
 def main():
-    # Change this path to your dataset path
-    dataset_path = os.path.join("CSV_File_Creatation", "UNSW_NB15_training-set(in).csv")
+    dataset_path = os.path.join("CSV_File_Creation", "UNSW_NB15_training-set(in).csv")
 
     model_df, raw_df, meta = load_unsw_nb15(
         dataset_path,
@@ -104,15 +110,9 @@ def main():
         top_n_services=10
     )
 
-    # Save a small sample of the processed feature matrix for presentation
-    sample_rows = 25
-    preprocessed_sample = model_df.head(sample_rows).copy()
-    preprocessed_sample.to_csv("preprocessed_sample.csv", index=False)
+    os.makedirs("output", exist_ok=True)
 
-    print("\nSaved preprocessed sample to preprocessed_sample.csv")
-    print(preprocessed_sample.to_string(index=False))
-
-    print("Loaded UNSW-NB15")
+    print("\nLoaded UNSW-NB15")
     print("Feature matrix shape:", model_df.shape)
     print("Raw data shape:", raw_df.shape)
     print("Metadata:", meta)
@@ -125,12 +125,11 @@ def main():
 
     X = pcs_df.values
 
-    clusterer = hdbscan.HDBSCAN(
+    clusterer = HDBSCAN(
         min_cluster_size=25,
         min_samples=8,
         metric="euclidean",
         cluster_selection_method="eom",
-        prediction_data=True
     )
 
     labels = clusterer.fit_predict(X)
@@ -146,6 +145,19 @@ def main():
     print("Number of clusters:", n_clusters)
     print("Number of noise points:", n_noise)
 
+    # Calibrate IF contamination to the same anomaly rate HDBSCAN found
+    estimated_contamination = max(0.01, min(0.5, float(n_noise / len(labels))))
+    if_predictions, _ = run_isolation_forest(X, contamination=estimated_contamination)
+    union_labels = combine_predictions(labels, if_predictions, mode="union")
+    intersection_labels = combine_predictions(labels, if_predictions, mode="intersection")
+
+    print("\nEnsemble summary")
+    print("----------------")
+    print("HDBSCAN anomalies:         ", n_noise)
+    print("Isolation Forest anomalies:", int((if_predictions == -1).sum()))
+    print("Union anomalies:           ", int((union_labels == -1).sum()))
+    print("Intersection anomalies:    ", int((intersection_labels == -1).sum()))
+
     if X.shape[1] >= 2:
         X_2d = X[:, :2]
     else:
@@ -153,9 +165,10 @@ def main():
 
     plot_clusters(X_2d, labels)
     plot_confidence(X_2d, labels, probs)
-    plot_noise(X_2d, labels)
+    plot_ensemble_comparison(X_2d, labels, if_predictions, union_labels)
 
     print_basic_evaluation(raw_df, labels)
+    print_detector_comparison(raw_df, labels, if_predictions, union_labels, intersection_labels)
 
     report_df = build_anomaly_report(
         feature_df=model_df,
@@ -164,27 +177,20 @@ def main():
         probabilities=probs
     )
 
-    report_path = "anomaly_report.csv"
+    report_path = "output/anomaly_report.csv"
+    if not report_df.empty:
+        if_anomaly = if_predictions == -1
+        report_df["if_flagged"] = [bool(if_anomaly[idx]) for idx in report_df["row_index"]]
+
     report_df.to_csv(report_path, index=False)
     print(f"\nSaved anomaly report to {report_path}")
 
-    if not report_df.empty:
-        preview_cols = [
-            c for c in [
-                "row_index",
-                "membership_probability",
-                "proto",
-                "service",
-                "state",
-                "label",
-                "attack_cat",
-                "description",
-                "baseline_comparison",
-            ]
-            if c in report_df.columns
-        ]
-        print("\nTop anomaly examples:")
-        print(report_df[preview_cols].head(10).to_string(index=False))
+    write_html_report(
+        report_df=report_df,
+        out_path="output/session_report.html",
+        flows_analyzed=len(raw_df),
+        session_label="UNSW-NB15 Demo",
+    )
 
     plt.show()
 

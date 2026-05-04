@@ -5,36 +5,18 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-try:
-    import hdbscan
-except Exception as e:
-    raise RuntimeError(
-        "The 'hdbscan' package is not installed. Install it with:\n"
-        "pip install hdbscan"
-    ) from e
+from sklearn.cluster import HDBSCAN
 
 from HDBSCAN.databaseFormatter import get_numeric_network_data
 from HDBSCAN.PCA import run_pca
+from HDBSCAN.ensemble_detector import run_isolation_forest, combine_predictions, plot_ensemble_comparison
 
 
 def find_csv_dir(project_root: str) -> str:
-    candidates = [
-        os.path.join(project_root, "CSV_Creation"),
-        os.path.join(project_root, "CSV_File_Creation"),
-        os.path.join(project_root, "CSV_File_Creatation"),
-        os.path.join(project_root, "CSV_Creation/"),
-        os.path.join(project_root, "CSV_File_Creation/"),
-        os.path.join(project_root, "CSV_File_Creatation/"),
-    ]
-
-    for candidate in candidates:
-        if os.path.isdir(candidate):
-            return candidate
-
-    raise FileNotFoundError(
-        "Could not find a CSV directory. Checked: "
-        "CSV_Creation, CSV_File_Creation, CSV_File_Creatation"
-    )
+    csv_dir = os.path.join(project_root, "CSV_File_Creation")
+    if not os.path.isdir(csv_dir):
+        raise FileNotFoundError(f"CSV directory not found: {csv_dir}")
+    return csv_dir
 
 
 def load_all_csvs(csv_dir: str) -> pd.DataFrame:
@@ -147,12 +129,11 @@ def main():
 
     X = pcs_df.values
 
-    clusterer = hdbscan.HDBSCAN(
+    clusterer = HDBSCAN(
         min_cluster_size=15,
         min_samples=5,
         metric="euclidean",
         cluster_selection_method="eom",
-        prediction_data=True
     )
 
     labels = clusterer.fit_predict(X)
@@ -168,6 +149,17 @@ def main():
     print("Cluster count:", num_clusters)
     print("Noise points:", num_noise)
 
+    if_predictions, _ = run_isolation_forest(X)
+    union_labels = combine_predictions(labels, if_predictions, mode="union")
+    intersection_labels = combine_predictions(labels, if_predictions, mode="intersection")
+
+    print("\nEnsemble summary")
+    print("----------------")
+    print("HDBSCAN anomalies:         ", num_noise)
+    print("Isolation Forest anomalies:", int((if_predictions == -1).sum()))
+    print("Union anomalies:           ", int((union_labels == -1).sum()))
+    print("Intersection anomalies:    ", int((intersection_labels == -1).sum()))
+
     # For graphs, use first two PCs if available
     if X.shape[1] >= 2:
         X_2d = X[:, :2]
@@ -176,7 +168,7 @@ def main():
 
     plot_clusters_2d(X_2d, labels)
     plot_membership_confidence(X_2d, labels, probabilities)
-    plot_noise_highlight(X_2d, labels)
+    plot_ensemble_comparison(X_2d, labels, if_predictions, union_labels)
 
     plt.show()
 
