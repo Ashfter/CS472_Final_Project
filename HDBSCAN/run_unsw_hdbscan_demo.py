@@ -5,16 +5,16 @@ import matplotlib.pyplot as plt
 
 from sklearn.cluster import HDBSCAN
 
-from HDBSCAN.unsw_nb15_loader import load_unsw_nb15
-from HDBSCAN.PCA import run_pca
-from HDBSCAN.anomaly_explainer import build_anomaly_report
-from HDBSCAN.ensemble_detector import (
+from unsw_nb15_loader import load_unsw_nb15
+from PCA import run_pca
+from anomaly_explainer import build_anomaly_report
+from ensemble_detector import (
     run_isolation_forest,
     combine_predictions,
     print_detector_comparison,
     plot_ensemble_comparison,
 )
-from HDBSCAN.report_writer import write_html_report
+from report_writer import write_html_report
 
 
 def plot_clusters(X_2d: np.ndarray, labels: np.ndarray):

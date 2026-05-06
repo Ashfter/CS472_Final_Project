@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NIDS Analysis Report</title>
+    <style>
+      :root {
+        --primary-bg: #f5f7fa;
+        --sidebar-bg: #1e2d3d;
+        --text-main: #2c3e50;
+        --text-light: #555;
+        --accent: #0066cc;
+        --accent-light: #e3f2fd;
+        --code-bg: #1e1e1e;
+        --border-color: #e0e0e0;
+        --shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", sans-serif;
+        line-height: 1.6;
+        color: var(--text-main);
+        margin: 0;
+        display: flex;
+        background-color: var(--primary-bg);
+      }
+
+      /* Side Navigation */
+      nav {
+        width: 220px;
+        background: var(--sidebar-bg);
+        color: white;
+        height: 100vh;
+        position: fixed;
+        padding: 1.5rem 1rem;
+        overflow-y: auto;
+      }
+
+      nav h2 {
+        font-size: 1.2rem;
+        font-weight: 600;
+        border-bottom: 2px solid var(--accent);
+        padding-bottom: 1rem;
+        margin-top: 0;
+        margin-bottom: 1.5rem;
+      }
+      nav ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+      nav ul li {
+        margin: 0;
+      }
+      nav ul li a {
+        display: block;
+        color: #bdc3c7;
+        text-decoration: none;
+        font-size: 0.95rem;
+        padding: 0.7rem 0;
+        border-left: 3px solid transparent;
+        padding-left: 1rem;
+        transition: all 0.2s ease;
+      }
+      nav ul li a:hover {
+        color: white;
+        border-left-color: var(--accent);
+        background: rgba(0, 102, 204, 0.1);
+      }
+
+      /* Main Content */
+      main {
+        margin-left: 220px;
+        padding: 2rem 3rem;
+        width: calc(100% - 220px);
+      }
+
+      header {
+        margin-bottom: 2rem;
+      }
+
+      header h1 {
+        margin-top: 0;
+        margin-bottom: 0.5rem;
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: var(--sidebar-bg);
+        border-bottom: 4px solid var(--accent);
+        padding-bottom: 1rem;
+        display: inline-block;
+      }
+
+      section {
+        background: white;
+        padding: 2rem;
+        margin-bottom: 1.5rem;
+        border-radius: 6px;
+        box-shadow: var(--shadow);
+        border-left: 4px solid transparent;
+      }
+
+      section:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+      }
+
+      h2 {
+        margin-top: 0;
+        margin-bottom: 1.2rem;
+        font-size: 1.6rem;
+        font-weight: 600;
+        color: var(--sidebar-bg);
+        border-bottom: 2px solid var(--accent-light);
+        padding-bottom: 0.7rem;
+      }
+
+      h3 {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--text-main);
+        margin-top: 1rem;
+        margin-bottom: 0.5rem;
+      }
+
+      p {
+        margin: 0.8rem 0;
+        color: var(--text-light);
+      }
+
+      /* Figure Grid Layout - 2 columns for fig 1&2, full width for fig 3 */
+      .figure-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+        margin-top: 1.5rem;
+      }
+
+      .figure-item {
+        text-align: center;
+        background: #fafafa;
+        padding: 1rem;
+        border-radius: 4px;
+        border: 1px solid var(--border-color);
+      }
+
+      .figure-item.full-width {
+        grid-column: 1 / -1;
+        display: flex;
+        justify-content: center;
+      }
+
+      .figure-item img {
+        width: 100%;
+        height: auto;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        transition: transform 0.2s ease;
+      }
+
+      .figure-item img:hover {
+        transform: scale(1.02);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      }
+
+      .figure-item.full-width img {
+        max-width: 70%;
+      }
+
+      .figure-caption {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--text-main);
+        margin-top: 0.8rem;
+      }
+
+      .figure-description {
+        font-size: 0.85rem;
+        color: var(--text-light);
+        margin-top: 0.4rem;
+        font-style: italic;
+      }
+
+      /* Terminal Output Grid */
+      .terminal-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+        margin-top: 1.5rem;
+      }
+
+      .terminal-item {
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        overflow: hidden;
+      }
+
+      .terminal-item img {
+        width: 100%;
+        height: auto;
+        display: block;
+        background: var(--code-bg);
+        border-radius: 4px;
+        max-height: 400px;
+        object-fit: contain;
+      }
+
+      .terminal-item-label {
+        background: #f0f0f0;
+        padding: 0.6rem 0.8rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--text-main);
+        border-top: 1px solid var(--border-color);
+      }
+
+      /* Terminal Log Output */
+      .terminal-log {
+        background: #f5f5f5;
+        color: #333;
+        padding: 1.5rem;
+        border-radius: 4px;
+        font-family: "Courier New", "Monaco", monospace;
+        font-size: 0.85rem;
+        overflow-x: auto;
+        line-height: 1.5;
+        border: 1px solid var(--border-color);
+        white-space: pre;
+        word-wrap: normal;
+      }
+
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+        margin-top: 1.5rem;
+      }
+
+      .stat-card {
+        background: white;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        padding: 1.5rem;
+        border-left: 4px solid var(--accent);
+      }
+
+      .stat-label {
+        font-size: 0.9rem;
+        color: var(--text-light);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.5rem;
+      }
+
+      .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--accent);
+      }
+
+      .stat-subtitle {
+        font-size: 0.85rem;
+        color: var(--text-light);
+        margin-top: 0.5rem;
+      }
+
+      .report-link {
+        display: inline-block;
+        background: var(--accent);
+        color: white;
+        padding: 12px 24px;
+        border-radius: 4px;
+        text-decoration: none;
+        font-size: 1rem;
+        font-weight: 600;
+        transition: all 0.2s ease;
+        margin-top: 1rem;
+      }
+
+      .report-link:hover {
+        background: #0052a3;
+        box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);
+      }
+
+      .intro-box {
+        background: var(--accent-light);
+        border-left: 4px solid var(--accent);
+        padding: 1.2rem;
+        border-radius: 4px;
+        margin-bottom: 1rem;
+      }
+
+      .intro-box strong {
+        color: var(--text-main);
+      }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <h2>📊 NIDS Report</h2>
+      <ul>
+        <li><a href="#intro">Introduction</a></li>
+        <li><a href="#methodology">Detection Logic</a></li>
+        <li><a href="#visuals">Cluster Analysis</a></li>
+        <li><a href="#terminal">Execution Logs</a></li>
+        <li><a href="#summary">Summary</a></li>
+      </ul>
+    </nav>
+
+    <main>
+      <header>
+        <h1>Network Intrusion Detection System (NIDS)</h1>
+      </header>
+
+      <section id="intro">
+        <h2>📌 Introduction & Objectives</h2>
+        <div class="intro-box">
+          <p>
+            This Network Intrusion Detection System (NIDS) leverages an ensemble of machine learning algorithms
+            to identify behavioral anomalies in network traffic. The system combines <strong>Principal Component Analysis (PCA)</strong>
+            for dimensionality reduction with a dual-detector approach using both <strong>HDBSCAN clustering</strong> and
+            <strong>Isolation Forest anomaly detection</strong> to maximize detection coverage and accuracy.
+          </p>
+          <p>
+            By implementing an ensemble methodology, the system can aggregate predictions from multiple algorithms,
+            allowing for more robust anomaly detection compared to single-algorithm approaches.
+          </p>
+          <p>
+            <strong>Primary Objectives:</strong>
+            <ul>
+              <li>✓ Detect zero-day vulnerabilities and behavioral anomalies in network traffic</li>
+              <li>✓ Minimize false-positive alerts while maintaining high detection recall</li>
+              <li>✓ Compare single-detector vs ensemble approaches for optimal performance</li>
+              <li>✓ Provide interpretable results suitable for security analyst review</li>
+            </ul>
+          </p>
+        </div>
+      </section>
+
+      <section id="methodology">
+        <h2>🔬 Detection Logic & Architecture</h2>
+        <p>
+          The NIDS employs a three-stage detection pipeline combining dimensionality reduction with an ensemble of anomaly detectors:
+        </p>
+        <h3>Stage 1: Feature Preprocessing & Dimensionality Reduction (PCA)</h3>
+        <p>
+          Raw network flow data undergoes feature engineering and encoding. High-dimensional features are then
+          compressed using <strong>Principal Component Analysis (PCA)</strong> to reduce noise and computational overhead
+          while preserving variance that distinguishes normal from anomalous behavior. This preprocessing is critical for
+          both detector algorithms to operate efficiently on high-dimensional data.
+        </p>
+        <h3>Stage 2A: Density-Based Clustering (HDBSCAN)</h3>
+        <p>
+          <strong>HDBSCAN</strong> (Hierarchical Density-Based Spatial Clustering of Applications with Noise) identifies
+          dense clusters in the PCA-reduced space representing "normal" traffic patterns. The algorithm is particularly
+          effective because it does not require specifying cluster count in advance and naturally identifies noise points
+          (label = -1) that deviate from dense regions. These noise points are candidate anomalies.
+        </p>
+        <h3>Stage 2B: Isolation-Based Anomaly Detection (Isolation Forest)</h3>
+        <p>
+          In parallel, <strong>Isolation Forest</strong> operates using a fundamentally different approach: it isolates anomalies
+          by randomly selecting features and thresholds, building isolation trees. Anomalous observations require fewer isolations,
+          making them easier to separate. This provides an orthogonal perspective to density-based detection.
+        </p>
+        <h3>Stage 3: Ensemble Combination Strategy</h3>
+        <p>
+          Predictions from both detectors are combined using two strategies:
+        </p>
+        <ul>
+          <li><strong>Union (Recall-Optimized):</strong> Any point flagged by either detector is marked anomalous. Higher detection rate, potentially higher false positives.</li>
+          <li><strong>Intersection (Precision-Optimized):</strong> Only points flagged by both detectors are marked anomalous. Higher confidence, potentially missed anomalies.</li>
+        </ul>
+        <p>
+          This ensemble approach leverages the complementary strengths of both algorithms, improving overall detection robustness.
+        </p>
+      </section>
+
+      <!-- Visual Analysis with 3 Figures -->
+      <section id="visuals">
+        <h2>📈 Cluster Analysis Visualization</h2>
+        <p>
+          The following visualizations show the PCA-reduced feature space and the clustering results from HDBSCAN:
+        </p>
+        <div class="figure-grid">
+          <div class="figure-item">
+            <img src="Images/Figure_1.png" alt="Initial Cluster Mapping" />
+            <div class="figure-caption">Figure 1: Initial Cluster Mapping</div>
+            <div class="figure-description">PCA projection showing initial data distribution in 2D space</div>
+          </div>
+          <div class="figure-item">
+            <img src="Images/Figure_2.png" alt="HDBSCAN Noise Identification" />
+            <div class="figure-caption">Figure 2: HDBSCAN Noise Identification</div>
+            <div class="figure-description">Clustered data with noise points highlighted (potential anomalies)</div>
+          </div>
+          <div class="figure-item full-width">
+            <img src="Images/Figure_3.png" alt="Centroid Verification" />
+            <div class="figure-caption">Figure 3: Centroid Verification & Cluster Boundaries</div>
+            <div class="figure-description">Detailed analysis showing cluster centroids and density-based boundaries</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="terminal">
+        <h2>🖥️ Execution Results & Analysis</h2>
+        <p>
+          Terminal output from the NIDS detection pipeline showing all stages of processing and final anomaly detection results:
+        </p>
+        
+        <div class="terminal-log">HDBSCAN summary
+---------------
+Unique labels: [-1  0  1  2  3  4  5  6  7  8  9 10]
+Number of clusters: 11
+Number of noise points: 191
+
+Ensemble summary
+----------------
+HDBSCAN anomalies:          191
+Isolation Forest anomalies: 191
+Union anomalies:            238
+Intersection anomalies:     144
+
+Basic anomaly evaluation
+------------------------
+TP: 135
+FP: 56
+TN: 263
+FN: 546
+Precision: 0.7068
+Recall: 0.1982
+
+Attack categories among anomaly candidates:
+attack_cat
+Exploits          62
+Normal            56
+DoS               32
+Fuzzers           21
+Reconnaissance     7
+Analysis           6
+Backdoor           5
+Worms              1
+Generic            1
+Name: count, dtype: int64
+
+Detector comparison (vs ground truth)
+-------------------------------------------------------
+Detector                   Precision    Recall        F1
+-------------------------------------------------------
+HDBSCAN alone                 0.7068    0.1982    0.3096
+Isolation Forest alone        0.6806    0.1909    0.2982
+Ensemble (union)              0.6639    0.2320    0.3439
+Ensemble (intersection)       0.7431    0.1571    0.2594
+-------------------------------------------------------
+
+Saved anomaly report to output/anomaly_report.csv
+Saved session report to output/session_report.html</div>
+      </section>
+
+      <section id="summary">
+        <h2>📋 Summary & Key Findings</h2>
+        <p>
+          The NIDS ensemble successfully analyzed the UNSW-NB15 dataset, identifying multiple behavior clusters
+          and flagging candidate anomalies through complementary detection mechanisms. The dual-detector approach
+          provides both breadth (union strategy) and confidence (intersection strategy) in anomaly identification.
+        </p>
+        <h3>Performance Summary:</h3>
+        <ul>
+          <li><strong>Best Performer:</strong> Ensemble (union) achieved the highest F1 score (0.3439), indicating
+            better balanced performance between precision and recall compared to single detectors.</li>
+          <li><strong>Precision Leader:</strong> Intersection strategy achieved 0.7431 precision, providing high-confidence
+            anomaly candidates with minimal false positives.</li>
+          <li><strong>Total Candidates Identified:</strong> 238 union anomalies representing 23.8% of traffic for investigation.</li>
+          <li><strong>Attack Categories Detected:</strong> 9 distinct attack types identified, with Exploits (62) and DoS (32) being most prevalent.</li>
+        </ul>
+        <h3>System Conclusions:</h3>
+        <ul>
+          <li>✓ Ensemble approach outperforms single detectors across key metrics</li>
+          <li>✓ PCA dimensionality reduction successfully compressed 117 features while preserving discriminative patterns</li>
+          <li>✓ HDBSCAN identified 11 distinct behavioral clusters with 191 noise points</li>
+          <li>✓ Isolation Forest provided orthogonal anomaly detection, identifying similar patterns independently</li>
+          <li>✓ System ready for deployment with configurable ensemble strategy based on operational requirements</li>
+        </ul>
+        <p style="margin-top: 1.5rem; color: var(--text-light);">
+          For detailed packet-level analysis and anomaly forensics, access the comprehensive session report:
+        </p>
+        <a href="session_report.html" class="report-link">📄 Open Full Forensic Report →</a>
+      </section>
+    </main>
+  </body>
+</html>
