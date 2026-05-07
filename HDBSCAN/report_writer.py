@@ -104,6 +104,7 @@ _ATTACK_DESCRIPTIONS: dict[str, str] = {
 def _infer_attack(row: pd.Series, description: str) -> tuple[str, str, list[str]]:
     """Returns (attack_type, likelihood, signals)."""
     desc_lower = description.lower()
+    # Dual-detector confirmation bumps the score because independent agreement is stronger evidence
     if_confirmed = bool(row.get("if_flagged", False))
 
     votes: dict[str, int] = {}
@@ -162,7 +163,6 @@ def _finding_html(i: int, row: pd.Series) -> str:
 
     detection = "Both detectors" if row.get("if_flagged", False) else "Single detector"
 
-    # Traffic stats table rows
     stat_rows = ""
     for label, key, fmt in [
         ("Duration",  "dur",    lambda v: _fmt_num(v, "s", 3)),

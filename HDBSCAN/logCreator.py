@@ -30,11 +30,13 @@ def capture_baseline(app_name: str, packet_count: int = 150000) -> pd.DataFrame:
         })
 
     print(f"Sniffing {packet_count} packets. Start your game now!")
+    # store=0 tells Scapy not to buffer packets in memory — we handle them in the callback
     sniff(prn=packet_inspector, count=packet_count, store=0)
     return pd.DataFrame(packet_list)
 
 
 def build_flow_df(raw_df: pd.DataFrame) -> pd.DataFrame:
+    # Aggregate packets into flows so HDBSCAN sees per-connection statistics, not individual packets
     print("\nCapture complete! Formatting data...")
     flow_df = raw_df.groupby(
         ['srcip', 'sport', 'dstip', 'dsport', 'proto']

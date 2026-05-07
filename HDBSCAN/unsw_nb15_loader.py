@@ -64,7 +64,6 @@ def load_unsw_nb15(
 
     raw_df = df.copy()
 
-    # Candidate columns commonly present in UNSW-NB15
     numeric_candidates = [
         "dur",
         "spkts",
@@ -123,20 +122,18 @@ def load_unsw_nb15(
 
     model_df = df[present_numeric + present_categorical].copy()
 
-    # Clean numeric columns
     for col in present_numeric:
         model_df[col] = pd.to_numeric(model_df[col], errors="coerce")
 
     model_df = model_df.replace([np.inf, -np.inf], np.nan)
 
-    # Fill numeric NaNs using median
     for col in present_numeric:
         median_value = model_df[col].median()
         if pd.isna(median_value):
             median_value = 0
         model_df[col] = model_df[col].fillna(median_value)
 
-    # Log-transform heavy-tailed traffic features
+    # Log-transform skewed traffic columns so extreme outliers don't dominate PCA
     skewed_cols = [
         c for c in [
             "spkts",
@@ -180,7 +177,6 @@ def load_unsw_nb15(
     if "spkts" in model_df.columns and "dpkts" in model_df.columns:
         model_df["pkt_ratio_sd"] = model_df["spkts"] / (model_df["dpkts"] + 1)
 
-    # Clean categoricals
     for col in present_categorical:
         model_df[col] = (
             model_df[col]
@@ -190,7 +186,7 @@ def load_unsw_nb15(
             .replace({"nan": "unknown", "": "unknown"})
         )
 
-    # Collapse rare service values into 'other'
+    # Rare service values each become their own one-hot column, which just adds noise
     if "service" in model_df.columns and top_n_services is not None and top_n_services > 0:
         top_services = model_df["service"].value_counts().nlargest(top_n_services).index
         model_df["service"] = model_df["service"].where(
@@ -198,7 +194,6 @@ def load_unsw_nb15(
             "other"
         )
 
-    # One-hot encode low-cardinality protocol/state/service fields
     if present_categorical:
         model_df = pd.get_dummies(
             model_df,
@@ -206,10 +201,9 @@ def load_unsw_nb15(
             dummy_na=False
         )
 
-    # Final safety clean
     model_df = model_df.replace([np.inf, -np.inf], np.nan).fillna(0)
 
-    # Remove constant columns
+    # Zero-variance columns contribute nothing to clustering and slow down PCA
     if model_df.shape[1] > 0:
         selector = VarianceThreshold(threshold=0.0)
         selected_array = selector.fit_transform(model_df)
