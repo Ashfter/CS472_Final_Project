@@ -7,9 +7,8 @@ __pycache__/
 CSV_File_Creation/UNSW-NB15_4.csv
 CSV_File_Creation/UNSW_NB15_training-set(in).csv
 
-# Generated outputs — session_report.html and anomaly_report.csv in output/ are intentionally tracked
+# Generated outputs (output/ is tracked for session_report.html and anomaly_report.csv)
 # output/
-session_report.html
 
 # Virtual environments
 .venv/
