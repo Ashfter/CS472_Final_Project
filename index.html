@@ -24,7 +24,7 @@
       --glow:      0 0 24px rgba(0,212,255,0.18);
     }
 
-    html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+    html { scroll-behavior: smooth; }
 
     body {
       background: var(--bg);
@@ -83,7 +83,7 @@
       padding: 120px 2rem 80px;
     }
 
-    section { margin-bottom: 100px; }
+    section { margin-bottom: 100px; scroll-margin-top: 72px; }
 
     /* ─── HERO ────────────────────────────────────────────── */
     .hero {
@@ -236,7 +236,6 @@
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 16px;
-      position: relative;
     }
 
     .pipeline-card {
