@@ -105,12 +105,12 @@ Benchmarking uses the [UNSW-NB15 dataset](https://research.unsw.edu.au/projects/
 
 | Detector | Precision | Recall | F1 |
 |---|---|---|---|
-| HDBSCAN alone | — | — | — |
-| Isolation Forest alone | — | — | — |
-| Ensemble (union) | — | — | — |
-| Ensemble (intersection) | — | — | — |
+| HDBSCAN alone | 0.707 | 0.198 | 0.310 |
+| Isolation Forest alone | 0.681 | 0.191 | 0.298 |
+| Ensemble (union) | 0.664 | 0.232 | **0.344** |
+| Ensemble (intersection) | **0.743** | 0.157 | 0.259 |
 
-*Fill in after running `run_unsw_hdbscan_demo.py`.*
+*Results from a 1,000-row stratified sample of UNSW_NB15_training-set(in).csv.*
 
 ---
 

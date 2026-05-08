@@ -9,6 +9,7 @@ CSV_File_Creation/UNSW_NB15_training-set(in).csv
 
 # Generated outputs
 output/
+session_report.html
 
 # Virtual environments
 .venv/

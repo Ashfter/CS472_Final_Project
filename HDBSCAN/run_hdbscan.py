@@ -38,8 +38,6 @@ def load_all_csvs(csv_dir: str) -> pd.DataFrame:
         raise RuntimeError("No usable CSV data was loaded.")
 
     combined = pd.concat(frames, ignore_index=True)
-
-    # Drop duplicate rows and obvious garbage if desired
     combined = combined.replace([np.inf, -np.inf], np.nan).dropna()
 
     print(f"\nCombined dataset shape: {combined.shape}")
@@ -114,13 +112,11 @@ def plot_noise_highlight(X_2d: np.ndarray, labels: np.ndarray):
 
 
 def main():
-    # Assumes this file lives in HDBSCAN/
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     csv_dir = find_csv_dir(project_root)
 
     numeric_df = load_all_csvs(csv_dir)
 
-    # PCA for clustering and plotting
     pcs_df, pca_obj, scaler = run_pca(
         numeric_df,
         variance_threshold=0.95,
@@ -129,6 +125,8 @@ def main():
 
     X = pcs_df.values
 
+    # min_cluster_size/min_samples tuned for typical home network baseline sizes;
+    # eom (excess of mass) tends to find more compact, meaningful clusters than leaf
     clusterer = HDBSCAN(
         min_cluster_size=15,
         min_samples=5,
@@ -160,7 +158,6 @@ def main():
     print("Union anomalies:           ", int((union_labels == -1).sum()))
     print("Intersection anomalies:    ", int((intersection_labels == -1).sum()))
 
-    # For graphs, use first two PCs if available
     if X.shape[1] >= 2:
         X_2d = X[:, :2]
     else:

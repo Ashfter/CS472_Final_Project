@@ -14,19 +14,16 @@ def get_numeric_network_data(file_path, save_file=None, return_df=True):
     ['sport', 'dsport', 'proto', 'dur', 'sbytes']
     """
 
-    # Peek at the first row to infer shape
+    # Sniff column count to distinguish formats — neither CSV type has a reliable header
     sample = pd.read_csv(file_path, nrows=1, header=None)
     col_count = sample.shape[1]
 
     if col_count >= 40:
-        # Likely UNSW-NB15-like layout
-        # pull only the fields we want:
-        # srcip, sport, dstip, dsport, proto, dur, sbytes
+        # UNSW-NB15 raw layout — columns 5 and 8 are non-numeric metadata so we skip them
         df = pd.read_csv(file_path, header=None, usecols=[0, 1, 2, 3, 4, 6, 7])
         df.columns = ['srcip', 'sport', 'dstip', 'dsport', 'proto', 'dur', 'sbytes']
     elif col_count >= 9:
-        # Custom baseline layout with no header:
-        # srcip, sport, dstip, dsport, proto, dur, sbytes, attack_cat, label
+        # Custom baseline layout (srcip, sport, dstip, dsport, proto, dur, sbytes, attack_cat, label)
         df = pd.read_csv(file_path, header=None)
         df = df.iloc[:, :7]
         df.columns = ['srcip', 'sport', 'dstip', 'dsport', 'proto', 'dur', 'sbytes']
@@ -35,7 +32,6 @@ def get_numeric_network_data(file_path, save_file=None, return_df=True):
             f"Unsupported CSV format in {file_path}. Expected 9-column custom baseline or wider UNSW-like format."
         )
 
-    # Normalize protocol strings -> numeric values
     proto_map = {
         'tcp': 6,
         'udp': 17,
@@ -51,7 +47,6 @@ def get_numeric_network_data(file_path, save_file=None, return_df=True):
         .fillna(0)
     )
 
-    # Force numeric conversion
     for col in ['sport', 'dsport', 'dur', 'sbytes']:
         df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
 

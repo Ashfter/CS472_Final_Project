@@ -97,10 +97,8 @@ def describe_anomaly(
     ref_df = raw_reference_df if not raw_reference_df.empty else processed_reference_df
     row = raw_row if not raw_row.empty else processed_row
 
-    # Categorical hints
     tags.extend(_infer_behavior_tags(raw_row))
 
-    # Volume / rate / duration clues
     _add_reason_from_percentile(
         reasons,
         ref_df,
@@ -134,7 +132,6 @@ def describe_anomaly(
         low_text="very short-lived connection",
     )
 
-    # Packet profile clues
     _add_reason_from_percentile(
         reasons,
         ref_df,
@@ -152,7 +149,6 @@ def describe_anomaly(
         low_text="very low destination packet count",
     )
 
-    # TTL clues
     _add_reason_from_percentile(
         reasons,
         ref_df,
@@ -170,7 +166,6 @@ def describe_anomaly(
         low_text="unusually low destination TTL",
     )
 
-    # Timing clues
     _add_reason_from_percentile(
         reasons,
         ref_df,
@@ -196,7 +191,6 @@ def describe_anomaly(
         low_text=None,
     )
 
-    # Spread / recurrence clues
     _add_reason_from_percentile(
         reasons,
         ref_df,
@@ -230,8 +224,7 @@ def describe_anomaly(
         low_text=None,
     )
 
-    # Higher-level behavior summaries using combinations
-    # These are intentionally heuristic and descriptive.
+    # Check for compound behaviors that single-feature checks would miss
     sbytes = pd.to_numeric(row.get("sbytes", np.nan), errors="coerce")
     dbytes = pd.to_numeric(row.get("dbytes", np.nan), errors="coerce")
     rate = pd.to_numeric(row.get("rate", np.nan), errors="coerce")
@@ -276,7 +269,6 @@ def describe_anomaly(
         elif byte_ratio <= 0.1:
             reasons.append("strongly destination-heavy byte imbalance")
 
-    # Remove duplicates while preserving order
     seen = set()
     unique_reasons = []
     for item in reasons:
@@ -401,12 +393,11 @@ def build_anomaly_report(
             "baseline_comparison": baseline_comparison,
         }
 
-        # Raw context fields
         for col in ["proto", "service", "state", "label", "attack_cat"]:
             if col in raw_df.columns:
                 report_row[col] = raw_row[col]
 
-        # Keep human-readable raw magnitudes when available
+        # Use raw (pre-log-transform) values so the report shows interpretable magnitudes
         for col in [
             "dur",
             "spkts",

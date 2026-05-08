@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 from sklearn.ensemble import IsolationForest
 
 
@@ -9,9 +8,10 @@ def run_isolation_forest(
     contamination: float | str = "auto",
     random_state: int = 42,
 ) -> tuple[np.ndarray, np.ndarray]:
+    # random_state is fixed so results are reproducible across runs
     clf = IsolationForest(n_estimators=100, contamination=contamination, random_state=random_state)
-    predictions = clf.fit_predict(X)   # -1 = anomaly, 1 = normal
-    scores = clf.decision_function(X)  # lower = more anomalous
+    predictions = clf.fit_predict(X)
+    scores = clf.decision_function(X)
     return predictions, scores
 
 
@@ -20,6 +20,8 @@ def combine_predictions(
     if_predictions: np.ndarray,
     mode: str = "union",
 ) -> np.ndarray:
+    # Union = flag if either detector says anomaly (more sensitive, more false positives).
+    # Intersection = only flag if both agree (higher precision, risks missing real attacks).
     hdbscan_anomaly = hdbscan_labels == -1
     if_anomaly = if_predictions == -1
     if mode == "union":

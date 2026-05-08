@@ -21,6 +21,7 @@ def run_pca(
     if numeric_df.shape[1] == 0:
         raise ValueError("No numeric columns found for PCA.")
 
+    # Standardize so high-magnitude features (like sbytes) don't dominate the components
     if scale:
         scaler = StandardScaler()
         X = scaler.fit_transform(numeric_df.values)
@@ -31,6 +32,8 @@ def run_pca(
     max_components = min(X.shape[0], X.shape[1])
 
     if n_components is None:
+        # Auto-select how many components explain variance_threshold of total variance,
+        # so we don't feed HDBSCAN noisy low-variance dimensions
         pca_tmp = SKPCA(n_components=max_components)
         pca_tmp.fit(X)
         cum_var = np.cumsum(pca_tmp.explained_variance_ratio_)
